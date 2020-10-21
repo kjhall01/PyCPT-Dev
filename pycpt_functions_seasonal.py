@@ -1159,6 +1159,7 @@ class PyCPT_Args():
 			ax = [[ax[q]] for q in range(nmods)]
 		elif nmods == 1:
 			ax = [ax]
+
 		if self.met[score_ndx] not in ['Pearson','Spearman']:
 			#urrent_cmap = plt.cm.get_cmap('RdYlBu', 10 )
 			current_cmap = self.make_cmap(10)
@@ -1213,7 +1214,7 @@ class PyCPT_Args():
 				try:
 					ax[i][j].add_feature(self.shape_feature, edgecolor='black')
 				except:
-					print('failed to add your shape file')
+					pass#xprint('failed to add your shape file')
 				if self.use_default == 'True':
 					ax[i][j].add_feature(states_provinces, edgecolor='black')
 				ax[i][j].set_ybound(lower=self.sla2, upper=self.nla2)
@@ -1394,7 +1395,7 @@ class PyCPT_Args():
 		tari=self.tgts[0]
 		model=self.models[0]
 		monn=self.mons[0]
-
+		data = [[[[] for k in range(M)] for j in range(nsea)] for i in range(nmods)]
 		with open('{}/output/'.format(self.cwd_work)+model+'_'+self.fprefix+self.PREDICTAND+'_'+self.mpref+'_EOFX_'+tari+'_'+monn+'.ctl', "r") as fp:
 			for line in self.lines_that_contain("XDEF", fp):
 				W = int(line.split()[1])
@@ -1413,9 +1414,9 @@ class PyCPT_Args():
 				for line in self.lines_that_contain("YDEF", fp):
 					Hy = int(line.split()[1])
 					YDy= float(line.split()[4])
-			eofy=np.empty([M,Hy,Wy])  #define array for later use
+			eofy=np.empty([nmods, M,Hy,Wy])  #define array for later use
 
-		eofx=np.empty([M,H,W])  #define array for later use
+		eofx=np.empty([nmods,M,H,W])  #define array for later use
 
 		#plt.figure(figsize=(20,10))
 		#fig, ax = plt.subplots(figsize=(20,15),sharex=True,sharey=True)
@@ -1521,17 +1522,19 @@ class PyCPT_Args():
 								numval=int(recl/np.dtype('float32').itemsize) #this if for each time/EOF stamp
 								A0=np.fromfile(f,dtype='float32',count=numval)
 								endrec=struct.unpack('i',f.read(4))[0]  #needed as Fortran sequential repeats the header at the end of the record!!!
-							eofy[mo,:,:]= np.transpose(A0.reshape((Wy, Hy), order='F'))
-						eofy[eofy==-999.]=np.nan #nans
+							var = np.transpose(A0.reshape((Wy, Hy), order='F'))
+							var[np.where(var==-999.0)]=np.nan
+							data[i][j][mo].append(var)
+						 #nans
 
 						if self.obs == 'ENACTS-BD':
-							CS=ax[i][j].pcolormesh(np.linspace(87.6, 93.0,num=Wy), np.linspace(27.1, 20.4, num=Hy), eofy[mode,:,:],
+							CS=ax[i][j].pcolormesh(np.linspace(87.6, 93.0,num=Wy), np.linspace(27.1, 20.4, num=Hy), data[i][j][mode][0],
 							vmin=-.1,vmax=.1,
 							cmap=current_cmap,
 							transform=ccrs.PlateCarree())
 						else:
 						#CS=ax[i][j].pcolormesh(np.linspace(loni, loni+Wy*XDy,num=Wy), np.linspace(lati+Hy*YDy, lati, num=Hy), eofy[mode,:,:],
-							CS=ax[i][j].pcolormesh(np.linspace(self.wlo1, self.elo1,num=Wy), np.linspace(self.nla1, self.sla1, num=Hy), eofy[mode,:,:],
+							CS=ax[i][j].pcolormesh(np.linspace(self.wlo1, self.elo1,num=Wy), np.linspace(self.nla1, self.sla1, num=Hy), data[i][j][mode][0],
 							vmin=-.1,vmax=.1,
 							cmap=current_cmap,
 							transform=ccrs.PlateCarree())
@@ -1554,10 +1557,12 @@ class PyCPT_Args():
 								numval=int(recl/np.dtype('float32').itemsize) #this if for each time/EOF stamp
 								A0=np.fromfile(f,dtype='float32',count=numval)
 								endrec=struct.unpack('i',f.read(4))[0]  #needed as Fortran sequential repeats the header at the end of the record!!!
-							eofx[mo,:,:]= np.transpose(A0.reshape((W, H), order='F'))
+							var = np.transpose(A0.reshape((W, H), order='F'))
+							var[np.where(var==-999.0)]=np.nan
+							data[i][j][mo].append(var)
 
 						eofx[eofx==-999.]=np.nan #nans
-						CS=ax[i][j].pcolormesh(np.linspace(self.wlo1, self.wlo1+W*XD,num=W), np.linspace(self.sla1+H*YD, self.sla1, num=H), eofx[mode,:,:],
+						CS=ax[i][j].pcolormesh(np.linspace(self.wlo1, self.wlo1+W*XD,num=W), np.linspace(self.sla1+H*YD, self.sla1, num=H), data[i][j][mode][0],
 						vmin=-.105, vmax=.105,
 						cmap=current_cmap,
 						transform=ccrs.PlateCarree())
@@ -1588,13 +1593,15 @@ class PyCPT_Args():
 							A0=np.fromfile(f,dtype='float32',count=numval)
 							endrec=struct.unpack('i',f.read(4))[0]  #needed as Fortran sequential repeats the header at the end of the record!!!
 						if self.mpref == 'CCA':
-							eofx[mo,:,:]= np.transpose(A0.reshape((W, H), order='F'))
+							var = np.transpose(A0.reshape((W, H), order='F'))
 						else:
-							eofx[mo,:,:]= np.transpose(A0.reshape((W, H), order='F'))
+							var= np.transpose(A0.reshape((W, H), order='F'))
+						var[np.where(var==-999.0)]=np.nan
+						data[i][j][mo].append(var)
 
 
 					eofx[eofx==-999.]=np.nan #nans
-					CS=ax[i][j].pcolormesh(np.linspace(self.wlo1, self.wlo1+W*XD,num=W), np.linspace(self.sla1+H*YD, self.sla1, num=H), eofx[mode,:,:],
+					CS=ax[i][j].pcolormesh(np.linspace(self.wlo1, self.wlo1+W*XD,num=W), np.linspace(self.sla1+H*YD, self.sla1, num=H), data[i][j][mode][0],
 					vmin=-.105, vmax=.105,
 					cmap=current_cmap,
 					transform=ccrs.PlateCarree())
@@ -1619,7 +1626,7 @@ class PyCPT_Args():
 		                   bbox_transform=ax[i][j].transAxes,
 		                   borderpad=0.1,
 		                   )
-				cbar = plt.colorbar(CS,ax=ax[i][j], cax=axins, orientation='vertical', pad=0.01, ticks= [-0.09, -0.075, -0.06, -0.045, -0.03, -0.015, 0, 0.015, 0.03, 0.045, 0.06, 0.075, 0.09])
+				cbar = fig.colorbar(CS,ax=ax[i][j], cax=axins, orientation='vertical', pad=0.01, ticks= [-0.09, -0.075, -0.06, -0.045, -0.03, -0.015, 0, 0.015, 0.03, 0.045, 0.06, 0.075, 0.09]) #kjch102120
 				#cbar.set_label(label) #, rotation=270)
 				#axins.yaxis.tick_left()
 				f.close()
