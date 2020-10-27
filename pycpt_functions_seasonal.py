@@ -998,7 +998,7 @@ class PyCPT_Args():
 		f.write("0\n")
 		f.close()
 		if platform.system() == 'Windows':
-			get_ipython().system("copy ./scripts/params ./scripts/"+self.models[model_ndx]+"_"+self.fprefix+"_"+self.mpref+"_"+self.tgts[tar_ndx]+"_"+self.mons[tar_ndx]+".cpt")
+			get_ipython().system("cd scripts && copy params "+self.models[model_ndx]+"_"+self.fprefix+"_"+self.mpref+"_"+self.tgts[tar_ndx]+"_"+self.mons[tar_ndx]+".cpt")
 		else:
 			get_ipython().system("cp ./scripts/params ./scripts/"+self.models[model_ndx]+"_"+self.fprefix+"_"+self.mpref+"_"+self.tgts[tar_ndx]+"_"+self.mons[tar_ndx]+".cpt")
 
@@ -1016,12 +1016,12 @@ class PyCPT_Args():
 		print('Executing CPT for '+self.models[model_ndx]+' and initialization '+self.mons[tar_ndx]+'...')
 		try:
 			if platform.system() == "Windows":
-				subprocess.check_output([ self.cptdir+'CPT.x', '<', './scripts/params', '>', './scripts/CPT_stout_train_'+self.models[model_ndx]+'_'+self.tgts[tar_ndx]+'_'+self.mons[tar_ndx]+'.txt'] , shell=True)
+				subprocess.check_output([ self.cptdir+'CPT_batch.exe', '<', './scripts/params', '>', './scripts/CPT_stout_train_'+self.models[model_ndx]+'_'+self.tgts[tar_ndx]+'_'+self.mons[tar_ndx]+'.txt'] , shell=True)
 			else:
 				subprocess.check_output(self.cptdir+'CPT.x < ./scripts/params > ./scripts/CPT_stout_train_'+self.models[model_ndx]+'_'+self.tgts[tar_ndx]+'_'+self.mons[tar_ndx]+'.txt',stderr=subprocess.STDOUT, shell=True)
 		except subprocess.CalledProcessError as e:
-			print(e.output.decode())
-			raise
+			print("CPT Windows version throws an error right at the end of its operation- everything should be fine for the rest of this notebook, but you need to click 'close' on the 'Access Violation' Window that pops up for now. ")
+
 		print('----------------------------------------------')
 		print('Calculations for '+self.mons[tar_ndx]+' initialization completed!')
 		print('See output folder, and check scripts/CPT_stout_train_'+self.models[model_ndx]+'_'+self.tgts[tar_ndx]+'_'+self.mons[tar_ndx]+'.txt for errors')
@@ -1186,6 +1186,8 @@ class PyCPT_Args():
 
 				if self.met[score_ndx] == 'CCAFCST_V' or self.met[score_ndx] == 'PCRFCST_V':
 					f=open('./output/'+self.models[i]+'_'+self.fprefix+'_'+self.met[score_ndx]+'_'+training_season+'_'+mon+str(fday)+'_wk'+str(wk)+'.dat','rb')
+					if platform.system() == "Windows":
+						garb = struct.unpack('s', f.read(1))[0]
 					recl=struct.unpack('i',f.read(4))[0]
 					numval=int(recl/np.dtype('float32').itemsize)
 					#Now we read the field
@@ -1210,6 +1212,8 @@ class PyCPT_Args():
 				else:
 					#Since CPT writes grads files in sequential format, we need to excise the 4 bytes between records (recl)
 					f=open('./output/'+self.models[i]+'_'+self.fprefix+self.PREDICTAND+'_'+self.mpref+'_'+self.met[score_ndx]+'_'+self.tgts[j]+'_'+mon+'.dat','rb')
+					if platform.system() == "Windows":
+						garb = struct.unpack('s', f.read(1))[0]
 					recl=struct.unpack('i',f.read(4))[0]
 					numval=int(recl/np.dtype('float32').itemsize)
 					#Now we read the field
@@ -1459,10 +1463,14 @@ class PyCPT_Args():
 						#cycle for all time steps  (same approach to read GrADS files as before, but now read T times)
 						for mo in range(M):
 							#Now we read the field
+							if platform.system() == "Windows":
+								garb = struct.unpack('s', f.read(1))[0]
 							recl=struct.unpack('i',f.read(4))[0]
 							numval=int(recl/np.dtype('float32').itemsize) #this if for each time/EOF stamp
 							A0=np.fromfile(f,dtype='float32',count=numval)
 							endrec=struct.unpack('i',f.read(4))[0]  #needed as Fortran sequential repeats the header at the end of the record!!!
+							if platform.system() == "Windows":
+								garb = struct.unpack('s', f.read(1))[0]
 							A0[A0==-999.] = np.nan
 							data[i][j][mo]= np.transpose(A0.reshape((Wy, Hy), order='F'))
 						eofy[eofy==-999.]=np.nan #nans
@@ -1487,10 +1495,14 @@ class PyCPT_Args():
 						#cycle for all time steps  (same approach to read GrADS files as before, but now read T times)
 						for mo in range(M):
 							#Now we read the field
+							if platform.system() == "Windows":
+								garb = struct.unpack('s', f.read(1))[0]
 							recl=struct.unpack('i',f.read(4))[0]
 							numval=int(recl/np.dtype('float32').itemsize) #this if for each time/EOF stamp
 							A0=np.fromfile(f,dtype='float32',count=numval)
 							endrec=struct.unpack('i',f.read(4))[0]  #needed as Fortran sequential repeats the header at the end of the record!!!
+							if platform.system() == "Windows":
+								garb = struct.unpack('s', f.read(1))[0]
 							A0[A0==-999.]=np.nan
 							data[i][j][mo] = np.transpose(A0.reshape((W, H), order='F'))
 							eofx[mo,:,:]= np.transpose(A0.reshape((W, H), order='F'))
@@ -1512,10 +1524,14 @@ class PyCPT_Args():
 					#cycle for all time steps  (same approach to read GrADS files as before, but now read T times)
 					for mo in range(M):
 						#Now we read the field
+						if platform.system() == "Windows":
+							garb = struct.unpack('s', f.read(1))[0]
 						recl=struct.unpack('i',f.read(4))[0]
 						numval=int(recl/np.dtype('float32').itemsize) #this if for each time/EOF stamp
 						A0=np.fromfile(f,dtype='float32',count=numval)
 						endrec=struct.unpack('i',f.read(4))[0]  #needed as Fortran sequential repeats the header at the end of the record!!!
+						if platform.system() == "Windows":
+							garb = struct.unpack('s', f.read(1))[0]
 						A0[A0==-999.]=np.nan
 						data[i][j][mo] = np.transpose(A0.reshape((W, H), order='F'))
 						eofx[mo,:,:]= np.transpose(A0.reshape((W, H), order='F'))
@@ -1713,10 +1729,14 @@ class PyCPT_Args():
 			#cycle for all time steps  (same approach to read GrADS files as before, but now read T times)
 			for it in range(T):
 				#Now we read the field
+				if platform.system() == "Windows":
+					garb = struct.unpack('s', f.read(1))[0]
 				recl=struct.unpack('i',f.read(4))[0]
 				numval=int(recl/np.dtype('float32').itemsize) #this if for each time stamp
 				A0=np.fromfile(f,dtype='float32',count=numval)
 				endrec=struct.unpack('i',f.read(4))[0]  #needed as Fortran sequential repeats the header at the end of the record!!!
+				if platform.system() == "Windows":
+					garb = struct.unpack('s', f.read(1))[0]
 				memb0[it,:,:]= np.transpose(A0.reshape((W, H), order='F'))
 
 			memb0[memb0==-999.]=np.nan #identify NaNs
@@ -1743,7 +1763,8 @@ class PyCPT_Args():
 		try:
 			self.shape_feature = ShapelyFeature(Reader(self.shp_file).geometries(), ccrs.PlateCarree(), facecolor='none')
 		except:
-			print('Failed to load custom shape file')
+			#print('Failed to load custom shape file')
+			pass
 
 		self._tempmods = copy.deepcopy(self.models)
 		self.models = ['NextGen']
@@ -1756,10 +1777,16 @@ class PyCPT_Args():
 		list_det_by_season = [[] for i in range(nsea)]
 		for i in range(nmods):
 			for j in range(nsea):
-				plats, plongs, av = self.read_forecast('probabilistic', self.models[i], self.PREDICTAND, self.mpref, self.tgts[j], self.mons[j], self.fyr )
+				if platform.system() == "Windows":
+					plats, plongs, av = self.read_forecast_bin('probabilistic', self.models[i], self.PREDICTAND, self.mpref, self.tgts[j], self.mons[j], self.fyr )
+				else:
+					plats, plongs, av = self.read_forecast('probabilistic', self.models[i], self.PREDICTAND, self.mpref, self.tgts[j], self.mons[j], self.fyr )
 				for kl in range(av.shape[0]):
 					list_probabilistic_by_season[j][kl].append(av[kl])
-				dlats, dlongs, av = self.read_forecast('deterministic', self.models[i], self.PREDICTAND, self.mpref, self.tgts[j], self.mons[j], self.fyr )
+				if platform.system() == "Windows":
+					dlats, dlongs, av = self.read_forecast_bin('deterministic', self.models[i], self.PREDICTAND, self.mpref, self.tgts[j], self.mons[j], self.fyr )
+				else:
+					dlats, dlongs, av = self.read_forecast('deterministic', self.models[i], self.PREDICTAND, self.mpref, self.tgts[j], self.mons[j], self.fyr )
 				list_det_by_season[j].append(av[0])
 
 		ng_probfcst_by_season = []
@@ -1832,7 +1859,8 @@ class PyCPT_Args():
 				try:
 					ax[i][j].add_feature(self.shape_feature, edgecolor='black')
 				except:
-					print('failed to load your shapefile')
+					#print('failed to load your shapefile')
+					pass
 				if self.use_default == 'True':
 					ax[i][j].add_feature(states_provinces, edgecolor='black')
 
@@ -1898,6 +1926,66 @@ class PyCPT_Args():
 		fig.savefig('./images/NG_Probabilistic_RealtimeForecasts.png', dpi=500, bbox_inches='tight')
 		self.models = self._tempmods
 
+	def read_forecast_bin(self, fcst_type, model, predictand, mpref, mons, mon, fyr):
+		if fcst_type == 'deterministic':
+			f = open("./output/" + model + '_' + predictand + predictand +'_' + mpref + 'FCST_mu_' +mons + '_' +mon+str(fyr)+'.dat', 'rb')
+		elif fcst_type == 'probabilistic':
+			f = open("./output/" + model + '_' + predictand +predictand + '_' + mpref + 'FCST_P_' +mons + '_' +mon+str(fyr)+'.dat', 'rb')
+		else:
+			print('invalid fcst_type')
+			return
+
+		if fcst_type == 'deterministic':
+			with  open("./output/" + model + '_' + predictand +predictand + '_' + mpref + 'FCST_mu_' +mons + '_' +mon+str(fyr)+'.ctl', 'r') as fp:
+				for line in self.lines_that_contain("XDEF", fp): #lons
+					W = int(line.split()[1])
+					XD= float(line.split()[4])
+					Wi = float(line.split()[3])
+			with  open("./output/" + model + '_' + predictand + predictand + '_' + mpref + 'FCST_mu_' +mons + '_' +mon+str(fyr)+'.ctl', 'r') as fp:
+				for line in self.lines_that_contain("YDEF", fp):  #lats
+					H = int(line.split()[1])
+					YD= float(line.split()[4])
+					Hi = float(line.split()[3])
+
+
+			garb = struct.unpack('s', f.read(1))[0]
+			recl = struct.unpack('i', f.read(4))[0]
+			numval=int(recl/np.dtype('float32').itemsize)
+			A0 = np.fromfile(f, dtype='float32', count=numval)
+			var = np.transpose(A0.reshape((W, H), order='F'))
+			var[var==-999.]=np.nan #only sensible values
+			recl = struct.unpack('i', f.read(4))[0]
+			garb = struct.unpack('s', f.read(1))[0]
+			lats, lons = np.linspace(Hi+H*YD, Hi, num=H+1), np.linspace(Wi, Wi+W*XD, num=W+1)
+			return lats, lons, np.asarray([var])
+
+		if fcst_type == 'probabilistic':
+			with  open("./output/" + model + '_' + predictand + predictand +'_' + mpref + 'FCST_P_' +mons + '_' +mon+str(fyr)+'.ctl', 'r') as fp:
+				for line in self.lines_that_contain("XDEF", fp): #lons
+					W = int(line.split()[1])
+					XD= float(line.split()[4])
+					Wi = float(line.split()[3])
+			with  open("./output/" + model + '_' + predictand +predictand + '_' + mpref + 'FCST_P_' +mons + '_' +mon+str(fyr)+'.ctl', 'r') as fp:
+				for line in self.lines_that_contain("YDEF", fp):  #lats
+					H = int(line.split()[1])
+					YD= float(line.split()[4])
+					Hi = float(line.split()[3])
+
+			vars = []
+			for ii in range(3):
+				garb = struct.unpack('s', f.read(1))[0]
+				recl = struct.unpack('i', f.read(4))[0]
+				numval=int(recl/np.dtype('float32').itemsize)
+				A0 = np.fromfile(f, dtype='float32', count=numval)
+				var = np.transpose(A0.reshape((W, H), order='F'))
+				var[var==-1.]=np.nan #only sensible values
+				recl = struct.unpack('i', f.read(4))[0]
+				garb = struct.unpack('s', f.read(1))[0]
+				vars.append(var)
+			lats, lons = np.linspace(Hi+H*YD, Hi, num=H+1), np.linspace(Wi, Wi+W*XD, num=W+1)
+			return lats, lons, np.asarray(vars)
+
+
 	def read_forecast(self, fcst_type, model, predictand, mpref, mons, mon, fyr):
 		if fcst_type == 'deterministic':
 			f = open("./output/" + model + '_' + predictand + '_' + mpref + 'FCST_mu_' +mons + '_' +mon+str(fyr)+'.txt', 'r')
@@ -1940,14 +2028,19 @@ class PyCPT_Args():
 	def ensemblefiles(self,models,work):
 
 		if platform.system() == 'Windows':
-			get_ipython().system("mkdir ./output/NextGen")
-			get_ipython().system("del /s /q ./output/NextGen/*_NextGen.tgz")
-			get_ipython().system("del /s /q ./output/NextGen/*.txt")
+			get_ipython().system("cd output && mkdir NextGen")
+			get_ipython().system("cd output\\NextGen &&  del /s /q *_NextGen.tgz")
+			get_ipython().system("cd output\\NextGen && del /s /q *.txt")
 			for i in range(len(self.models)):
-				get_ipython().system("cd " + os.path.normpath("output/NextGen/") + " && copy "+ os.path.normpath("../*"+self.models[i]+"*.txt") + " .")
-			get_ipython().system("cd " + os.path.normpath("output/NextGen/") + " && copy "+ os.path.normpath("output/*NextGen*.txt") + " " + os.path.normpath("output/NextGen"))
-			get_ipython().system("cd " + os.path.normpath("output/NextGen/") + " && tar cvzf " + work + "_NextGen.tgz *.txt") #this ~should~ be fine ? unless they have a computer older than last march 2019
-			get_ipython().system("cd " + os.path.normpath("output/NextGen/") + " && del /s /q *.txt")
+				get_ipython().system("cd " + os.path.normpath("output/") + " && copy "+ os.path.normpath("*"+self.models[i]+"*.ctl") + " NextGen")
+				get_ipython().system("cd " + os.path.normpath("output/") + " && copy "+ os.path.normpath("*"+self.models[i]+"*.dat") + " NextGen")
+
+			get_ipython().system("cd " + os.path.normpath("output/") + " && copy "+ os.path.normpath("*NextGen*.ctl") + " NextGen")
+			get_ipython().system("cd " + os.path.normpath("output/") + " && copy "+ os.path.normpath("*NextGen*.dat") + " NextGen")
+
+			get_ipython().system("cd " + os.path.normpath("output/NextGen/") + " && tar cvzf " + work + "_NextGen.tgz *") #this ~should~ be fine ? unless they have a computer older than last march 2019
+			get_ipython().system("cd " + os.path.normpath("output/NextGen/") + " && del /s /q *.ctl")
+			get_ipython().system("cd " + os.path.normpath("output/NextGen/") + " && del /s /q *.dat")
 			get_ipython().system("echo %cd%")
 
 		else:
@@ -1968,7 +2061,7 @@ class PyCPT_Args():
 		try:
 			self.shape_feature = ShapelyFeature(Reader(self.shp_file).geometries(), ccrs.PlateCarree(), facecolor='none')
 		except:
-			print('Failed to load custom shape file')
+			pass
 		self._tempmods = copy.deepcopy(self.models)
 		self.models=['NextGen']
 		cbar_loc, fancy = 'bottom', True
@@ -1979,11 +2072,17 @@ class PyCPT_Args():
 		list_det_by_season = [[] for i in range(nsea)]
 		for i in range(nmods):
 			for j in range(nsea):
-				plats, plongs, av = self.read_forecast('probabilistic', self.models[i], self.PREDICTAND, self.mpref, self.tgts[j], self.mons[j], self.fyr )
+				if platform.system() == "Windows":
+					plats, plongs, av = self.read_forecast_bin('probabilistic', self.models[i], self.PREDICTAND, self.mpref, self.tgts[j], self.mons[j], self.fyr )
+				else:
+					plats, plongs, av = self.read_forecast('probabilistic', self.models[i], self.PREDICTAND, self.mpref, self.tgts[j], self.mons[j], self.fyr )
 				list_probabilistic_by_season[j][0].append(av[0])
 				list_probabilistic_by_season[j][1].append(av[1])
 				list_probabilistic_by_season[j][2].append(av[2])
-				dlats, dlongs, av = self.read_forecast('deterministic', self.models[i], self.PREDICTAND, self.mpref, self.tgts[j], self.mons[j], self.fyr )
+				if platform.system() == "Windows":
+					dlats, dlongs, av = self.read_forecast_bin('deterministic', self.models[i], self.PREDICTAND, self.mpref, self.tgts[j], self.mons[j], self.fyr )
+				else:
+					dlats, dlongs, av = self.read_forecast('deterministic', self.models[i], self.PREDICTAND, self.mpref, self.tgts[j], self.mons[j], self.fyr )
 				list_det_by_season[j].append(av[0])
 
 		ng_probfcst_by_season = []
@@ -2023,7 +2122,7 @@ class PyCPT_Args():
 				try:
 					ax[i][j].add_feature(self.shape_feature, edgecolor='black')
 				except:
-					print('failed to load your shapefile')
+					pass
 
 				if self.use_default == 'True':
 					ax[i][j].add_feature(states_provinces, edgecolor='black')
@@ -2096,7 +2195,6 @@ def setup_directories(workdir,working_directory, force_download, cptdir):
 			get_ipython().system('rmdir /S /Q {}/{}'.format(workdir + '/output'))
 			get_ipython().system('rmdir /S /Q {}/{}'.format(workdir + '/images'))
 			get_ipython().system('rmdir /S /Q {}/{}'.format(workdir))
-
 		else:
 			print('Mac deleting folders')
 			get_ipython().system('rm -rf {}'.format(workdir))
@@ -2105,16 +2203,28 @@ def setup_directories(workdir,working_directory, force_download, cptdir):
 		get_ipython().system('mkdir {}'.format(workdir))
 
 	if not os.path.isdir(workdir + '/scripts'):
-		get_ipython().system('mkdir {}/scripts'.format(workdir))
+		if platform.system() == 'Windows':
+			get_ipython().system('cd {} && mkdir scripts'.format(workdir))
+		else:
+			get_ipython().system('mkdir {}/scripts'.format(workdir))
 
 	if not os.path.isdir(workdir + '/images'):
-		get_ipython().system('mkdir {}/images'.format(workdir))
+		if platform.system() == "Windows":
+			get_ipython().system('cd {} && mkdir images'.format(workdir))
+		else:
+			get_ipython().system('mkdir {}/images'.format(workdir))
 
 	if not os.path.isdir(workdir + '/input'):
-		get_ipython().system('mkdir {}/input'.format(workdir))
+		if platform.system() == "Windows":
+			get_ipython().system('cd {} && mkdir input'.format(workdir))
+		else:
+			get_ipython().system('mkdir {}/input'.format(workdir))
 
 	if not os.path.isdir(workdir + '/output'):
-		get_ipython().system('mkdir {}/output'.format(workdir))
+		if platform.system() == "Windows":
+			get_ipython().system('cd {} && mkdir output'.format(workdir))
+		else:
+			get_ipython().system('mkdir {}/output'.format(workdir))
 
 	os.environ["CPT_BIN_DIR"] = cptdir
 	os.chdir(workdir)
@@ -2167,6 +2277,8 @@ def skilltab(score,wknam,lon1,lat1,lat2,lon2,loni,lone,lati,late,fprefix,mpref,t
 		for S in score:
 			#Since CPT writes grads files in sequential format, we need to excise the 4 bytes between records (recl)
 			f=open('./output/'+model+'_'+fprefix+'_'+mpref+'_'+str(S)+'_'+training_season+'_wk'+str(wk)+'.dat','rb')
+			if platform.system() == "Windows":
+				garb = struct.unpack('s', f.read(1))[0]
 			recl=struct.unpack('i',f.read(4))[0]
 			numval=int(recl/np.dtype('float32').itemsize)
 			#Now we read the field
@@ -2215,11 +2327,15 @@ def pltmapProb(loni,lone,lati,late,fprefix,mpref,training_season, mon, fday, nwk
 		tit=['Below Normal','Normal','Above Normal']
 		for i in range(3):
 				#Since CPT writes grads files in sequential format, we need to excise the 4 bytes between records (recl)
+				if platform.system() == "Windows":
+					garb = struct.unpack('s', f.read(1))[0]
 				recl=struct.unpack('i',f.read(4))[0]
 				numval=int(recl/np.dtype('float32').itemsize)
 				#We now read the field for that record (probabilistic files have 3 records: below, normal and above)
 				B=np.fromfile(f,dtype='float32',count=numval) #astype('float')
 				endrec=struct.unpack('i',f.read(4))[0]
+				if platform.system() == "Windows":
+					garb = struct.unpack('s', f.read(1))[0]
 				var = np.flip(np.transpose(B.reshape((W, H), order='F')),0)
 				var[var<0]=np.nan #only positive values
 				ax2=plt.subplot(nwk, 3, (L*3)+(i+1),projection=ccrs.PlateCarree())
@@ -2293,6 +2409,8 @@ def pltmapff(models,predictand,thrs,ntrain,loni,lone,lati,late,fprefix,mpref,mon
 
 		#Read variance
 		f=open('./output/'+model+'_'+fprefix+predictand+'_'+mpref+'FCST_var_'+tar+'_'+monf+str(fyr)+'.dat','rb')
+		if platform.system() == "Windows":
+			garb = struct.unpack('s', f.read(1))[0]
 		recl=struct.unpack('i',f.read(4))[0]
 		numval=int(recl/np.dtype('float32').itemsize)
 		#Now we read the field
@@ -2395,6 +2513,8 @@ def pltprobff(models,predictand,thrs,ntrain,lon,lat,loni,lone,lati,late,fprefix,
 		#Read mean
 		#Since CPT writes grads files in sequential format, we need to excise the 4 bytes between records (recl)
 		f=open('./output/'+model+'_'+fprefix+predictand+'_'+mpref+'FCST_mu_'+tar+'_'+monf+str(fyr)+'.dat','rb')
+		if platform.system() == "Windows":
+			garb = struct.unpack('s', f.read(1))[0]
 		recl=struct.unpack('i',f.read(4))[0]
 		numval=int(recl/np.dtype('float32').itemsize)
 		#Now we read the field
@@ -2405,6 +2525,8 @@ def pltprobff(models,predictand,thrs,ntrain,lon,lat,loni,lone,lati,late,fprefix,
 
 		#Read variance
 		f=open('./output/'+model+'_'+fprefix+predictand+'_'+mpref+'FCST_var_'+tar+'_'+monf+str(fyr)+'.dat','rb')
+		if platform.system() == "Windows":
+			garb = struct.unpack('s', f.read(1))[0]
 		recl=struct.unpack('i',f.read(4))[0]
 		numval=int(recl/np.dtype('float32').itemsize)
 		#Now we read the field
@@ -2422,10 +2544,14 @@ def pltprobff(models,predictand,thrs,ntrain,lon,lat,loni,lone,lati,late,fprefix,
 		#cycle for all time steps  (same approach to read GrADS files as before, but now read T times)
 		for it in range(T):
 			#Now we read the field
+			if platform.system() == "Windows":
+				garb = struct.unpack('s', f.read(1))[0]
 			recl=struct.unpack('i',f.read(4))[0]
 			numval=int(recl/np.dtype('float32').itemsize) #this if for each time stamp
 			A0=np.fromfile(f,dtype='float32',count=numval)
 			endrec=struct.unpack('i',f.read(4))[0]  #needed as Fortran sequential repeats the header at the end of the record!!!
+			if platform.system() == "Windows":
+				garb = struct.unpack('s', f.read(1))[0]
 			muc0[it,:,:]= np.transpose(A0.reshape((W, H), order='F'))
 
 		muc0[muc0==-999.]=np.nan #identify NaNs
