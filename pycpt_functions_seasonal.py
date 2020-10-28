@@ -25,10 +25,12 @@ import fileinput
 import subprocess
 import numpy as np
 import matplotlib as mpl
+from IPython import get_ipython
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 #import netCDF4 as ns
 
 warnings.filterwarnings("ignore")
+plt.ioff()
 
 #Supporting class for custom pyplot/matplotlib colormaps
 class MidpointNormalize(colors.Normalize):
@@ -44,8 +46,15 @@ class MidpointNormalize(colors.Normalize):
 
 #class for handling the absurd number of parameters for running PyCPT and passing them to various functions
 class PyCPT_Args():
-	def __init__(self, cptdir, models, met, obs, station, MOS, xmodes_min, xmodes_max, ymodes_min, ymodes_max, ccamodes_min, ccamodes_max, nmodes, PREDICTAND, PREDICTOR, mons, tgti, tgtf, tgts, tini, tend, monf, fyr, force_download, nla1, sla1, wlo1, elo1, nla2, sla2, wlo2, elo2, shp_file='shp_file', use_default='True', localobs="None", lonkey="None", latkey="None", timekey="None", datakey="None"):
+	def callSys(self, arg):
+		if self.showPlot:
+			get_ipython().system(arg)
+		else:
+			subprocess.check_output(arg, shell=True)
+
+	def __init__(self, cptdir, models, met, obs, station, MOS, xmodes_min, xmodes_max, ymodes_min, ymodes_max, ccamodes_min, ccamodes_max, nmodes, PREDICTAND, PREDICTOR, mons, tgti, tgtf, tgts, tini, tend, monf, fyr, force_download, nla1, sla1, wlo1, elo1, nla2, sla2, wlo2, elo2, shp_file='shp_file', use_default='True', localobs="None", lonkey="None", latkey="None", timekey="None", datakey="None", showPlot=True):
 		#These are the variables set by the user
+		self.showPlot = showPlot
 		self.models = models
 		self.shp_file = shp_file
 		self.use_default = use_default
@@ -282,7 +291,7 @@ class PyCPT_Args():
 		local_obs_timeKey = 'time'           #ncdf key for accessing time
 		local_obs_datakey = 'rf'             #ncdf key for accessing data itself
 
-	def prepFiles(self, tar_ndx, model_ndx):
+	def prepFiles(self, tar_ndx, model_ndx,showPlot=True):
 		x= "Function to download (or not) the needed files"
 		print('Preparing CPT files for '+self.models[model_ndx]+' and initialization '+self.mons[tar_ndx]+'...')
 		self.getData( tar_ndx, model_ndx, 'Hindcasts')
@@ -525,17 +534,17 @@ class PyCPT_Args():
 					url = self.url_dict[datatype][self.fprefix][self.threshold_pctle if self.fprefix == 'RFREQ' else self.obs ]
 				else:
 					url = self.url_dict[datatype][self.fprefix][self.models[model_ndx]]
-				print("\n Obs (Freq) data URL: \n\n "+url.format(**self.arg_dict))
+				print("\n {} (Freq) data URL: \n\n ".format(datatype)+url.format(**self.arg_dict))
 				if datatype == 'Hindcasts':
-					get_ipython().system("curl -k "+url.format(**self.arg_dict)+" > ./input/"+self.models[model_ndx]+"_{}_".format(self.fprefix)+self.tgts[tar_ndx]+"_ini"+self.mons[tar_ndx]+".tsv")
+					self.callSys("curl -k "+url.format(**self.arg_dict)+" > ./input/"+self.models[model_ndx]+"_{}_".format(self.fprefix)+self.tgts[tar_ndx]+"_ini"+self.mons[tar_ndx]+".tsv")
 				elif datatype == 'Obs':
 					if self.fprefix == 'RFREQ':
 						fpre = 'RFREQ'
 					else:
 						fpre = 'PRCP'
-					get_ipython().system("curl -k "+url.format(**self.arg_dict)+" > ./input/obs_"+fpre+"_"+self.tgts[tar_ndx]+".tsv")
+					self.callSys("curl -k "+url.format(**self.arg_dict)+" > ./input/obs_"+fpre+"_"+self.tgts[tar_ndx]+".tsv")
 				else:
-					get_ipython().system("curl -k "+url.format(**self.arg_dict)+" > ./input/"+self.models[model_ndx]+"fcst_{}_".format(self.fprefix)+self.tgts[tar_ndx]+"_ini"+self.monf[tar_ndx]+str(self.fyr)+".tsv")
+					self.callSys("curl -k "+url.format(**self.arg_dict)+" > ./input/"+self.models[model_ndx]+"fcst_{}_".format(self.fprefix)+self.tgts[tar_ndx]+"_ini"+self.monf[tar_ndx]+str(self.fyr)+".tsv")
 
 		if self.obs_source=='home/.xchourio/.ACToday/.CHL/.prcp':   #weirdly enough, Ingrid sends the file with nfields=0. This is my solution for now. AGM
 			replaceAll("obs_"+predictand+"_"+tar+".tsv","cpt:nfields=0","cpt:nfields=1")
@@ -561,7 +570,7 @@ class PyCPT_Args():
 		elif self.MOS=='PCR':
 			# Opens PCR
 			f.write("612\n")
-		elif self.MOS=='PCR':
+		elif self.MOS=='ELR':
 			# Opens GCM; because the calibration takes place via sklearn.linear_model (in the Jupyter notebook)
 			f.write("614\n")
 		elif self.MOS=='None':
@@ -998,9 +1007,9 @@ class PyCPT_Args():
 		f.write("0\n")
 		f.close()
 		if platform.system() == 'Windows':
-			get_ipython().system("cd scripts && copy params "+self.models[model_ndx]+"_"+self.fprefix+"_"+self.mpref+"_"+self.tgts[tar_ndx]+"_"+self.mons[tar_ndx]+".cpt")
+			self.callSys("cd scripts && copy params "+self.models[model_ndx]+"_"+self.fprefix+"_"+self.mpref+"_"+self.tgts[tar_ndx]+"_"+self.mons[tar_ndx]+".cpt")
 		else:
-			get_ipython().system("cp ./scripts/params ./scripts/"+self.models[model_ndx]+"_"+self.fprefix+"_"+self.mpref+"_"+self.tgts[tar_ndx]+"_"+self.mons[tar_ndx]+".cpt")
+			self.callSys("cp ./scripts/params ./scripts/"+self.models[model_ndx]+"_"+self.fprefix+"_"+self.mpref+"_"+self.tgts[tar_ndx]+"_"+self.mons[tar_ndx]+".cpt")
 
 		if flag:
 			self.models = self._tempmods
@@ -1014,6 +1023,7 @@ class PyCPT_Args():
 			model_ndx = 0
 
 		print('Executing CPT for '+self.models[model_ndx]+' and initialization '+self.mons[tar_ndx]+'...')
+
 		try:
 			if platform.system() == "Windows":
 				subprocess.check_output([ self.cptdir+'CPT_batch.exe', '<', './scripts/params', '>', './scripts/CPT_stout_train_'+self.models[model_ndx]+'_'+self.tgts[tar_ndx]+'_'+self.mons[tar_ndx]+'.txt'] , shell=True)
@@ -1085,8 +1095,11 @@ class PyCPT_Args():
 	        #name='admin_1_states_provinces_lines',
 	        #scale='50m',
 	        #facecolor='none')
-		plt.savefig("./images/domain_{}_{}_{}_{}.png".format(loni[0],lone[0],lati[0],late[0]),dpi=300, bbox_inches='tight') #SAVE_FILE 0_domain.png
-		plt.show()
+		plt.savefig("./images/domain.png",dpi=300, bbox_inches='tight') #SAVE_FILE 0_domain.png
+		if self.showPlot:
+			plt.show()
+		else:
+			plt.close()
 
 	def pltmap(self, score_ndx, isNextGen=-1):
 
@@ -1251,6 +1264,29 @@ class PyCPT_Args():
 						transform=ccrs.PlateCarree())
 						label = 'Correlation'
 
+					if self.met[score_ndx] == 'Ignorance':
+						var[var<-1.]=np.nan #only sensible values
+						CS=ax[i][j].pcolormesh(np.linspace(self.wlo2+x_offset, self.wlo2+W*XD+x_offset,num=W), np.linspace(self.sla2+H*YD+y_offset, self.sla2+y_offset, num=H), var,
+						#vmin=0,vmax=1,
+						cmap=current_cmap,
+						transform=ccrs.PlateCarree())
+						label = 'Ignorance'
+
+					if self.met[score_ndx] == 'RPSS':
+						var[var<-1.]=np.nan #only sensible values
+						CS=ax[i][j].pcolormesh(np.linspace(self.wlo2+x_offset, self.wlo2+W*XD+x_offset,num=W), np.linspace(self.sla2+H*YD+y_offset, self.sla2+y_offset, num=H), var,
+						#vmin=-1,vmax=1,
+						cmap=current_cmap,
+						transform=ccrs.PlateCarree())
+						label = 'RPSS'
+
+					if self.met[score_ndx] == 'GROC':
+						var[var<-1.]=np.nan #only sensible values
+						CS=ax[i][j].pcolormesh(np.linspace(self.wlo2+x_offset, self.wlo2+W*XD+x_offset,num=W), np.linspace(self.sla2+H*YD+y_offset, self.sla2+y_offset, num=H), var,
+						#vmin=0,vmax=1,
+						cmap=current_cmap,
+						transform=ccrs.PlateCarree())
+						label = 'GROC'
 
 				#Make true if you want cbar on left, default is cbar on right
 				is_left = False
@@ -1274,7 +1310,7 @@ class PyCPT_Args():
 						cbar = fig.colorbar(CS, ax=ax[i][j], cax=axins, orientation='vertical', pad=0.02)#, ticks=bounds)
 					else:
 						bounds = [round(0.1*gt,1) for gt in range(1,10, 2)]
-						cbar = fig.colorbar(CS, ax=ax[i][j], cax=axins, orientation='vertical', pad=0.02, ticks=bounds)
+						cbar = fig.colorbar(CS, ax=ax[i][j], cax=axins, orientation='vertical', pad=0.02)#, ticks=bounds)
 					#cbar.set_label(label) #, rotation=270)\
 					#axins.yaxis.tick_left()
 				else:
@@ -1297,7 +1333,7 @@ class PyCPT_Args():
 						cbar = fig.colorbar(CS, ax=ax[i][j], cax=axins, orientation='vertical', pad=0.02)#, ticks=bounds)
 					else:
 						bounds = [round(0.1*gt,1) for gt in range(1,10, 2)]
-						cbar = fig.colorbar(CS, ax=ax[i][j], cax=axins, orientation='vertical', pad=0.02, ticks=bounds)
+						cbar = fig.colorbar(CS, ax=ax[i][j], cax=axins, orientation='vertical', pad=0.02)#, ticks=bounds)
 					cbar.set_label(label) #, rotation=270)\
 					#axins.yaxis.tick_left()
 				f.close()
@@ -1306,7 +1342,10 @@ class PyCPT_Args():
 		else:
 			filename = 'Models_' + self.met[score_ndx]
 		fig.savefig('./images/' + filename + '.png', dpi=500, bbox_inches='tight')
-		plt.show()
+		if self.showPlot:
+			plt.show()
+		else:
+			plt.close()
 
 	def plteofs(self, mode):
 
@@ -1320,7 +1359,9 @@ class PyCPT_Args():
 		if self.MOS=='None':
 			print('No EOFs are computed if MOS=None is used')
 			return
-		print('\n\n\n-------------EOF {}-------------\n'.format(mode+1))
+		if self.showPlot:
+			print('\n\n\n-------------EOF {}-------------\n'.format(mode+1))
+
 		if self.mpref == 'CCA':
 			nmods=len(self.models) + 1 #nmods + obs
 		else:
@@ -1579,7 +1620,10 @@ class PyCPT_Args():
 				#plt.autoscale(enable=True)
 		#plt.subplots_adjust(bottom=0.15, top=0.9)
 		#cax = plt.axes([0.2, 0.08, 0.6, 0.04])
-		plt.show()
+		if self.showPlot:
+			plt.show()
+		else:
+			plt.close()
 
 	def setNextGenModels(self, models):
 		self.original_models = self.models
@@ -1924,6 +1968,10 @@ class PyCPT_Args():
 				cbar_fbr.set_label('AN Probability (%)') #, rotation=270)\
 
 		fig.savefig('./images/NG_Probabilistic_RealtimeForecasts.png', dpi=500, bbox_inches='tight')
+		if self.showPlot:
+			plt.show()
+		else:
+			plt.close()
 		self.models = self._tempmods
 
 	def read_forecast_bin(self, fcst_type, model, predictand, mpref, mons, mon, fyr):
@@ -2028,30 +2076,30 @@ class PyCPT_Args():
 	def ensemblefiles(self,models,work):
 
 		if platform.system() == 'Windows':
-			get_ipython().system("cd output && mkdir NextGen")
-			get_ipython().system("cd output\\NextGen &&  del /s /q *_NextGen.tgz")
-			get_ipython().system("cd output\\NextGen && del /s /q *.txt")
+			self.callSys("cd output && mkdir NextGen")
+			self.callSys("cd output\\NextGen &&  del /s /q *_NextGen.tgz")
+			self.callSys("cd output\\NextGen && del /s /q *.txt")
 			for i in range(len(self.models)):
-				get_ipython().system("cd " + os.path.normpath("output/") + " && copy "+ os.path.normpath("*"+self.models[i]+"*.ctl") + " NextGen")
-				get_ipython().system("cd " + os.path.normpath("output/") + " && copy "+ os.path.normpath("*"+self.models[i]+"*.dat") + " NextGen")
+				self.callSys("cd " + os.path.normpath("output/") + " && copy "+ os.path.normpath("*"+self.models[i]+"*.ctl") + " NextGen")
+				self.callSys("cd " + os.path.normpath("output/") + " && copy "+ os.path.normpath("*"+self.models[i]+"*.dat") + " NextGen")
 
-			get_ipython().system("cd " + os.path.normpath("output/") + " && copy "+ os.path.normpath("*NextGen*.ctl") + " NextGen")
-			get_ipython().system("cd " + os.path.normpath("output/") + " && copy "+ os.path.normpath("*NextGen*.dat") + " NextGen")
+			self.callSys("cd " + os.path.normpath("output/") + " && copy "+ os.path.normpath("*NextGen*.ctl") + " NextGen")
+			self.callSys("cd " + os.path.normpath("output/") + " && copy "+ os.path.normpath("*NextGen*.dat") + " NextGen")
 
-			get_ipython().system("cd " + os.path.normpath("output/NextGen/") + " && tar cvzf " + work + "_NextGen.tgz *") #this ~should~ be fine ? unless they have a computer older than last march 2019
-			get_ipython().system("cd " + os.path.normpath("output/NextGen/") + " && del /s /q *.ctl")
-			get_ipython().system("cd " + os.path.normpath("output/NextGen/") + " && del /s /q *.dat")
-			get_ipython().system("echo %cd%")
+			self.callSys("cd " + os.path.normpath("output/NextGen/") + " && tar cvzf " + work + "_NextGen.tgz *") #this ~should~ be fine ? unless they have a computer older than last march 2019
+			self.callSys("cd " + os.path.normpath("output/NextGen/") + " && del /s /q *.ctl")
+			self.callSys("cd " + os.path.normpath("output/NextGen/") + " && del /s /q *.dat")
+			self.callSys("echo %cd%")
 
 		else:
-			get_ipython().system("mkdir ./output/NextGen/") #this is fine
-			get_ipython().system("cd ./output/NextGen/; rm -Rf *_NextGen.tgz *.txt")
+			self.callSys("mkdir ./output/NextGen/") #this is fine
+			self.callSys("cd ./output/NextGen/; rm -Rf *_NextGen.tgz *.txt")
 			for i in range(len(self.models)):
-				get_ipython().system("cd ./output/NextGen; cp ../*"+self.models[i]+"*.txt .")
-			get_ipython().system("cd ./output/NextGen; cp ../*NextGen*.txt .")
-			get_ipython().system("cd ./output/NextGen; tar cvzf " + work+"_NextGen.tgz *.txt") #this ~should~ be fine ? unless they have a computer older than last march 2019
-			get_ipython().system("cd ./output/NextGen/; rm -Rf *.txt")
-			get_ipython().system('pwd')
+				self.callSys("cd ./output/NextGen; cp ../*"+self.models[i]+"*.txt .")
+			self.callSys("cd ./output/NextGen; cp ../*NextGen*.txt .")
+			self.callSys("cd ./output/NextGen; tar cvzf " + work+"_NextGen.tgz *.txt") #this ~should~ be fine ? unless they have a computer older than last march 2019
+			self.callSys("cd ./output/NextGen/; rm -Rf *.txt")
+			self.callSys('pwd')
 
 		print("Compressed file "+work+"_NextGen.tgz created in output/NextGen/")
 		print("Now send that file to your contact at the IRI")
@@ -2180,51 +2228,62 @@ class PyCPT_Args():
 					cbar_bdet = fig.colorbar(CS_det, ax=ax[i][j],  cax=axins_det, orientation='horizontal', pad = 0.02)
 					cbar_bdet.set_label(labels[i])
 		fig.savefig('./images/NG_Deterministic_RealtimeForecasts.png', dpi=500, bbox_inches='tight')
+		if self.showPlot:
+			plt.show()
+		else:
+			plt.close()
 		self.models = self._tempmods
 
+def my_call(arg, showPlot):
+	if showPlot:
+		get_ipython().system(arg)
+	else:
+		x = subprocess.call(arg, shell=True )
+
+
 #set up the required directory structure lol
-def setup_directories(workdir,working_directory, force_download, cptdir):
+def setup_directories(workdir,working_directory, force_download, cptdir, showPlot=True):
 	os.chdir(working_directory)
 
 	if force_download and os.path.isdir(workdir):
 		if platform.system() == 'Windows':
 			print('Windows deleting folders')
-			get_ipython().system('del /S /Q {}/{}'.format(workdir))
-			get_ipython().system('rmdir /S /Q {}/{}'.format(workdir + '/scripts'))
-			get_ipython().system('rmdir /S /Q {}/{}'.format(workdir + '/input'))
-			get_ipython().system('rmdir /S /Q {}/{}'.format(workdir + '/output'))
-			get_ipython().system('rmdir /S /Q {}/{}'.format(workdir + '/images'))
-			get_ipython().system('rmdir /S /Q {}/{}'.format(workdir))
+			my_call('del /S /Q {}/{}'.format(workdir), showPlot)
+			my_call('rmdir /S /Q {}/{}'.format(workdir + '/scripts'), showPlot)
+			my_call('rmdir /S /Q {}/{}'.format(workdir + '/input'), showPlot)
+			my_call('rmdir /S /Q {}/{}'.format(workdir + '/output'), showPlot)
+			my_call('rmdir /S /Q {}/{}'.format(workdir + '/images'), showPlot)
+			my_call('rmdir /S /Q {}/{}'.format(workdir), showPlot)
 		else:
 			print('Mac deleting folders')
-			get_ipython().system('rm -rf {}'.format(workdir))
+			my_call('rm -rf {}'.format(workdir), showPlot)
 
 	if not os.path.isdir(workdir):
-		get_ipython().system('mkdir {}'.format(workdir))
+		my_call('mkdir {}'.format(workdir), showPlot)
 
 	if not os.path.isdir(workdir + '/scripts'):
 		if platform.system() == 'Windows':
-			get_ipython().system('cd {} && mkdir scripts'.format(workdir))
+			my_call('cd {} && mkdir scripts'.format(workdir), showPlot)
 		else:
-			get_ipython().system('mkdir {}/scripts'.format(workdir))
+			my_call('mkdir {}/scripts'.format(workdir), showPlot)
 
 	if not os.path.isdir(workdir + '/images'):
 		if platform.system() == "Windows":
-			get_ipython().system('cd {} && mkdir images'.format(workdir))
+			my_call('cd {} && mkdir images'.format(workdir), showPlot)
 		else:
-			get_ipython().system('mkdir {}/images'.format(workdir))
+			my_call('mkdir {}/images'.format(workdir), showPlot)
 
 	if not os.path.isdir(workdir + '/input'):
 		if platform.system() == "Windows":
-			get_ipython().system('cd {} && mkdir input'.format(workdir))
+			my_call('cd {} && mkdir input'.format(workdir), showPlot)
 		else:
-			get_ipython().system('mkdir {}/input'.format(workdir))
+			my_call('mkdir {}/input'.format(workdir), showPlot)
 
 	if not os.path.isdir(workdir + '/output'):
 		if platform.system() == "Windows":
-			get_ipython().system('cd {} && mkdir output'.format(workdir))
+			my_call('cd {} && mkdir output'.format(workdir), showPlot)
 		else:
-			get_ipython().system('mkdir {}/output'.format(workdir))
+			my_call('mkdir {}/output'.format(workdir), showPlot)
 
 	os.environ["CPT_BIN_DIR"] = cptdir
 	os.chdir(workdir)
