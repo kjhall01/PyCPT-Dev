@@ -28,6 +28,7 @@ import matplotlib as mpl
 from IPython import get_ipython
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 #import netCDF4 as ns
+import json
 
 warnings.filterwarnings("ignore")
 plt.ioff()
@@ -45,17 +46,23 @@ class MidpointNormalize(colors.Normalize):
 		return np.ma.masked_array(np.interp(value, x, y))
 
 #class for handling the absurd number of parameters for running PyCPT and passing them to various functions
-class PyCPT_Args():
+class PYCPT():
 	def callSys(self, arg):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 		if self.showPlot:
 			get_ipython().system(arg)
 		else:
 			subprocess.check_output(arg, shell=True)
 
-	def __init__(self, cptdir, models, met, obs, station, MOS, xmodes_min, xmodes_max, ymodes_min, ymodes_max, ccamodes_min, ccamodes_max, nmodes, PREDICTAND, PREDICTOR, mons, tgti, tgtf, tgts, tini, tend, monf, fyr, force_download, nla1, sla1, wlo1, elo1, nla2, sla2, wlo2, elo2, shp_file='shp_file', use_default='True', localobs="None", lonkey="None", latkey="None", timekey="None", datakey="None", showPlot=True):
+	def __init__(self, work, workdir, cptdir, models, met, obs, station, MOS, xmodes_min, xmodes_max, ymodes_min, ymodes_max, ccamodes_min, ccamodes_max, nmodes, PREDICTAND, PREDICTOR, mons, tgti, tgtf, tgts, tini, tend, monf, fyr, force_download, nla1, sla1, wlo1, elo1, nla2, sla2, wlo2, elo2, shp_file='shp_file', use_default='True', localobs="None", lonkey="None", latkey="None", timekey="None", datakey="None", showPlot=True):
+		self.isInitialized = 1
 		#These are the variables set by the user
 		self.showPlot = showPlot
 		self.models = models
+		self.work = work
+		self.workdir = workdir
 		self.shp_file = shp_file
 		self.use_default = use_default
 		self.met = met
@@ -180,10 +187,103 @@ class PyCPT_Args():
 						'NCEP-CFSv2': 'https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NCEP-CFSv2/.HINDCAST/.MONTHLY/.prec/S/%280000%201%20{monf}%20{fyr}%29/VALUES/L/{tgti}/{tgtf}/RANGEEDGES/%5BL%5D//keepgrids/average/%5BM%5D/average/Y/{sla1}/{nla1}/RANGEEDGES/X/{wlo1}/{elo1}/RANGEEDGES/-999/setmissing_value/%5BX/Y%5D%5BL/S/add%5D/cptv10.tsv'},
 		  }
 		}
+		self.setupParams(0)
 
+	def __str__(self):
+		return json.dumps(vars(self), sort_keys=True, indent=4)
+
+	def __repr__(self):
+		return json.dumps(vars(self), sort_keys=True, indent=4)
+
+	def __eq__(self, other):
+		dct1, dct2 = vars(self), vars(other)
+		flag = 0
+		for key in dct1.keys():
+			if dct1[key] != dct2[key]:
+				flag = 1
+		if flag:
+			return False
+		else:
+			return True
+
+	def __sub__(self, other):
+		dct1, dct2 = vars(self), vars(other)
+		dct_diff = {}
+		for key in dct1.keys():
+			if dct1[key] != dct2[key]:
+				dct_diff[key] = (dct1[key], dct2[key])
+		return dct_diff
+
+	@classmethod
+	def from_dict(self, dct):
+		#These are the variables set by the user
+		showPlot = dct["showPlot"]
+		models = dct["models"]
+		work = dct["work"]
+		workdir = dct["workdir"]
+		shp_file = dct["shp_file"]
+		use_default = dct["use_default"]
+		met = dct["met"]
+		obs = dct["obs"]
+		cptdir = dct["cptdir"]
+		station = dct["station"]
+		MOS = dct["MOS"]
+		xmodes_min = dct["xmodes_min"]
+		xmodes_max = dct["xmodes_max"]
+		ymodes_min = dct["ymodes_min"]
+		ymodes_max = dct["ymodes_max"]
+		ccamodes_min = dct["ccamodes_min"]
+		ccamodes_max = dct["ccamodes_max"]
+		eof_modes = dct["eof_modes"]
+		PREDICTAND = dct["PREDICTAND"]
+		PREDICTOR = dct["PREDICTOR"]
+		mons = dct["mons"]
+		tgti = dct["tgti"]
+		tgtf = dct["tgtf"]
+		tgts = dct["tgts"]
+		tini = dct["tini"]
+		tend = dct["tend"]
+		monf = dct["monf"]
+		fyr = dct["fyr"]
+		force_download = dct["force_download"]
+		nla1 = dct["nla1"]
+		sla1 = dct["sla1"]
+		wlo1 = dct["wlo1"]
+		elo1 = dct["elo1"]
+		nla2 = dct["nla2"]
+		sla2 = dct["sla2"]
+		wlo2 = dct["wlo2"]
+		elo2 = dct["elo2"]
+		localobs = dct["localobs"]
+		lonkey =  dct["lonkey"]
+		latkey = dct["latkey"]
+		timekey = dct["timekey"]
+		datakey = dct["datakey"]
+		return PYCPT( work, workdir,cptdir, models, met, obs, station, MOS, xmodes_min, xmodes_max, ymodes_min, ymodes_max, ccamodes_min, ccamodes_max, eof_modes, PREDICTAND, PREDICTOR, mons, tgti, tgtf, tgts, tini, tend, monf, fyr, force_download, nla1, sla1, wlo1, elo1, nla2, sla2, wlo2, elo2, shp_file, use_default)
+
+	@classmethod
+	def load(self, filename):
+		return PYCPT._load(filename)
+
+	@classmethod
+	def _load(self, filename):
+		dct = json.load(open(filename, 'r'))
+		return self.from_dict(dct)
+
+
+	def save(self, filename):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
+		f = open(filename, 'w')
+		f.write(json.dumps(vars(self), sort_keys=True, indent=4))
+		f.close()
 
 	def setupParams(self, tar_ndx):
 		#global rainfall_frequency,threshold_pctle,wetday_threshold,obs_source,hdate_last,mpref,L,ntrain,fprefix, nmonths, ndays
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 		days_in_month_dict = {"Jan": 31, "Feb": 28, "Mar": 31, "Apr": 30, "May": 31, "Jun": 30, "Jul": 31, "Aug": 31, "Sep": 30, "Oct": 31, "Nov": 30, "Dec": 31}
 		months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 		if '-' in self.tgts[tar_ndx]:
@@ -292,204 +392,19 @@ class PyCPT_Args():
 		local_obs_datakey = 'rf'             #ncdf key for accessing data itself
 
 	def prepFiles(self, tar_ndx, model_ndx,showPlot=True):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 		x= "Function to download (or not) the needed files"
 		print('Preparing CPT files for '+self.models[model_ndx]+' and initialization '+self.mons[tar_ndx]+'...')
 		self.getData( tar_ndx, model_ndx, 'Hindcasts')
 		self.getData( tar_ndx, model_ndx, 'Obs')
 		self.getData( tar_ndx, model_ndx, 'Forecasts')
 
-	def cutOutLocalData(self, tar_ndx):
-
-		with open(self.localobs[tar_ndx], 'r') as fp:
-			counter = 0
-			data = []
-			years = 0
-			flag = 0
-
-			for line in fp:
-				if counter == 0:
-					header = line
-				if counter == 1:
-					nfields = line
-				else:
-					if line[0] == 'c' or line[0] == 'x':
-						years += 1
-						if flag==2:
-							lats, lons = [], []
-							data.append(np.asarray(year_data))
-							year_data = []
-							flag = 1
-						else:
-							lats, lons = [], []
-							flag = 1
-							year_data = []
-					elif flag == 1:
-						flag = 2
-						lons = [float(num) for num in line.strip().split('\t')]
-					else:
-						line = [float(num) for num in line.strip().split('\t') ]
-						lats.append(line.pop(0))
-						year_data.append(np.asarray(line))
-				counter += 1
-			data.append(np.asarray(year_data))
-			data = np.asarray(data)
-			lats, lons = np.asarray(lats), np.asarray(lons)
-			print(data.shape)
-			print(lats.shape)
-			print(lons.shape)
-
-
-
-
-		var = data
-		vari = 'prec'
-		varname = vari
-		units = 'mm'
-		var[np.isnan(var)]=-999. #use CPT missing value
-		tar = self.tgts[tar_ndx]
-		L=0.5*(float(self.tgtf[tar_ndx])+float(self.tgti[tar_ndx]))
-		monthdic = {'Jan':'01','Feb':'02','Mar':'03','Apr':'04','May':'05','Jun':'06','Jul':'07','Aug':'08','Sep':'09','Oct':'10','Nov':'11','Dec':'12'}
-		S=monthdic[self.mons[tar_ndx]]
-		if '-' in tar:
-			mi=monthdic[tar.split("-")[0]]
-			mf=monthdic[tar.split("-")[1]]
-
-			#Read grads file to get needed coordinate arrays
-			#W, Wi, XD, H, Hi, YD, T, Ti, TD = self.readGrADSctl(self.models,self.fprefix,self.PREDICTAND,self.mpref,self.file,tar,self.monf[tar_ndx],self.fyr)
-
-			if tar=='Dec-Feb' or tar=='Nov-Jan':  #double check years are sync
-				xyear=True  #flag a cross-year season
-			else:
-				#Ti=Ti+1
-				xyear=False
-		else:
-			mi=monthdic[tar]
-			mf=monthdic[tar]
-
-			#Read grads file to get needed coordinate arrays
-			#W, Wi, XD, H, Hi, YD, T, Ti, TD = self.readGrADSctl(self.models,self.fprefix,self.PREDICTAND,self.mpref,self.file,tar,self.monf[tar_ndx],self.fyr)
-
-			if tar=='Dec-Feb' or tar=='Nov-Jan':  #double check years are sync
-				xyear=True  #flag a cross-year season
-			else:
-				#Ti=Ti+1
-				xyear=False
-
-		latkeys = np.where(lats <= self.nla2  )
-		latkeys = np.asarray(np.where(lats[latkeys] >= self.sla2))#.reshape(-1,1)
-
-		lonkeys = np.asarray(np.where(lons <= self.elo2 ))
-		lonkeys = np.asarray(np.where(lons[lonkeys] >= self.wlo2))#.reshape(-1,1)
-
-		data = data[:,latkeys[0,0]:latkeys[0,latkeys.shape[1]-1], lonkeys[0,0]:lonkeys[0,lonkeys.shape[1]-1]]
-		lats = lats[latkeys]
-		lons = lons[lonkeys]
-
-		Ti = self.tini
-		T = data.shape[0]
-		Tarr = np.arange(Ti, T+Ti)
-
-		Wi = lons[0,0]
-		W = lons.shape[0]
-		XD = lons[0,1] - lons[0,0]
-
-		Hi = lats[0,0]
-		H = lats.shape[0]
-		YD = lats[0,1] - lats[0,0]
-
-		Xarr = np.linspace(Wi, Wi+W*XD,num=W+1)
-		Yarr = np.linspace(Hi+H*YD, Hi,num=H+1)
-		vari = 'prcp'
-
-		Tarr = np.arange(Ti, Ti+T)
-		Xarr = np.linspace(Wi, Wi+W*XD,num=W+1)
-		Yarr = np.linspace(Hi+H*YD, Hi,num=H+1)
-		outfile = './input/{}_{}_{}.tsv'.format('obs', self.PREDICTAND, self.tgts[tar_ndx])
-		#Now write the CPT file
-		f = open(outfile, 'w')
-		f.write("xmlns:cpt=http://iri.columbia.edu/CPT/v10/\n")
-		#f.write("xmlns:cf=http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.4/\n")   #not really needed
-		f.write("cpt:nfields=1\n")
-		#f.write("cpt:T	" + str(Tarr)+"\n")  #not really needed
-		for it in range(T):
-			if xyear==True:
-				f.write("cpt:field="+vari+", cpt:L="+str(L)+" months, cpt:S="+str(Ti)+"-"+S+"-01T00:00, cpt:T="+str(Tarr[it])+"-"+mi+"/"+str(Tarr[it]+1)+"-"+mf+", cpt:nrow="+str(H)+", cpt:ncol="+str(W)+", cpt:row=Y, cpt:col=X, cpt:units="+units+", cpt:missing=-999.\n")
-			else:
-				f.write("cpt:field="+vari+", cpt:L="+str(L)+" months, cpt:S="+str(Ti)+"-"+S+"-01T00:00, cpt:T="+str(Tarr[it])+"-"+mi+"/"+mf+", cpt:nrow="+str(H)+", cpt:ncol="+str(W)+", cpt:row=Y, cpt:col=X, cpt:units="+units+", cpt:missing=-999.\n")
-			#f.write("\t")
-			np.savetxt(f, Xarr[0:-1], fmt="%.3f",newline='\t') #f.write(str(Xarr)[1:-1])
-			f.write("\n") #next line
-			for iy in range(H):
-				#f.write(str(Yarr[iy]) + "\t" + str(var[it,iy,0:-1])[1:-1]) + "\n")
-				np.savetxt(f,np.r_[Yarr[iy+1],var[it,iy,0:]],fmt="%.3f", newline='\t')  #excise extra line
-				f.write("\n") #next line
-		f.close()
-
-	def convertNCDF_CPT(self, tar_ndx):
-		#data = ns.Dataset(self.localobs[tar_ndx], 'r') #open .nc file for reading
-		units='mm'
-		L=0.5*(float(self.tgtf[tar_ndx])+float(self.tgti[tar_ndx]))
-
-		Ti = self.tini
-		T = data[self.timekey][:].filled().shape[0]
-		Tarr = np.arange(Ti, T+Ti)
-
-		Wi = data[self.lonkey][:].filled()[0]
-		W = data[self.lonkey][:].filled().shape[0]
-		XD = data[self.lonkey][:].filled()[1] - data[self.lonkey][:].filled()[0]
-
-		Hi = data[self.latkey][:].filled()[0]
-		H = data[self.latkey][:].filled().shape[0]
-		YD = data[self.latkey][:].filled()[1] - data[self.latkey][:].filled()[0]
-
-		Xarr = np.linspace(Wi, Wi+W*XD,num=W+1)
-		Yarr = np.linspace(Hi+H*YD, Hi,num=H+1)
-		vari = self.datakey
-
-		monthdic = {'Jan':'01','Feb':'02','Mar':'03','Apr':'04','May':'05','Jun':'06','Jul':'07','Aug':'08','Sep':'09','Oct':'10','Nov':'11','Dec':'12'}
-		S=monthdic[self.mons[tar_ndx]]
-		if '-' in self.tgts[tar_ndx]:
-			mi=monthdic[self.tgts[tar_ndx].split("-")[0]]
-			mf=monthdic[self.tgts[tar_ndx].split("-")[1]]
-
-			if self.tgts[tar_ndx]=='Dec-Feb' or self.tgts[tar_ndx]=='Nov-Jan':  #double check years are sync
-				xyear=True  #flag a cross-year season
-			else:
-				#Ti=Ti+1
-				xyear=False
-		else:
-			mi=monthdic[self.tgts[tar_ndx]]
-			mf=monthdic[self.tgts[tar_ndx]]
-
-			if self.tgts[tar_ndx]=='Dec-Feb' or self.tgts[tar_ndx]=='Nov-Jan':  #double check years are sync
-				xyear=True  #flag a cross-year season
-			else:
-				#Ti=Ti+1
-				xyear=False
-
-		var = data[self.datakey][:].filled()
-		outfile = './input/{}_{}_{}.tsv'.format('obs', self.PREDICTAND, self.tgts[tar_ndx])
-		#Now write the CPT file
-		f = open(outfile, 'w')
-		f.write("xmlns:cpt=http://iri.columbia.edu/CPT/v10/\n")
-		#f.write("xmlns:cf=http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.4/\n")   #not really needed
-		f.write("cpt:nfields=1\n")
-		#f.write("cpt:T	" + str(Tarr)+"\n")  #not really needed
-		for it in range(T):
-			if xyear==True:
-				f.write("cpt:field="+vari+", cpt:L="+str(L)+" months, cpt:S="+str(Ti)+"-"+S+"-01T00:00, cpt:T="+str(Tarr[it])+"-"+mi+"/"+str(Tarr[it]+1)+"-"+mf+", cpt:nrow="+str(H)+", cpt:ncol="+str(W)+", cpt:row=Y, cpt:col=X, cpt:units="+units+", cpt:missing=-999.\n")
-			else:
-				f.write("cpt:field="+vari+", cpt:L="+str(L)+" months, cpt:S="+str(Ti)+"-"+S+"-01T00:00, cpt:T="+str(Tarr[it])+"-"+mi+"/"+mf+", cpt:nrow="+str(H)+", cpt:ncol="+str(W)+", cpt:row=Y, cpt:col=X, cpt:units="+units+", cpt:missing=-999.\n")
-			#f.write("\t")
-			np.savetxt(f, Xarr[0:-1], fmt="%.3f",newline='\t') #f.write(str(Xarr)[1:-1])
-			f.write("\n") #next line
-			for iy in range(H):
-				#f.write(str(Yarr[iy]) + "\t" + str(var[it,iy,0:-1])[1:-1]) + "\n")
-				np.savetxt(f,np.r_[Yarr[iy+1],var[it,iy,0:]],fmt="%.3f", newline='\t')  #excise extra line
-				f.write("\n") #next line
-		f.close()
-
 	def getData(self,  tar_ndx, model_ndx, datatype):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 		#set the model to the current focus
 		self.arg_dict['model'] = self.models[model_ndx]
 		found=0
@@ -553,6 +468,9 @@ class PyCPT_Args():
 		print('----------------------------------------------')
 
 	def CPTscript(self, tar_ndx, model_ndx=-1):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 		flag=0
 		if model_ndx == -1:
 			self._tempmods = copy.deepcopy(self.models)
@@ -1015,6 +933,9 @@ class PyCPT_Args():
 			self.models = self._tempmods
 
 	def run(self, tar_ndx, model_ndx=-1):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 		flag=0
 		if model_ndx == -1:
 			self._tempmods = copy.deepcopy(self.models)
@@ -1042,11 +963,12 @@ class PyCPT_Args():
 			self.MOS = self._tempmos
 			self.models = self._tempmods
 
-	def pltdomain(self):
-		#try:
-		#self.shape_feature = ShapelyFeature(Reader(self.shp_file).geometries(), ccrs.PlateCarree(), facecolor='none')
-		#except:
-		#	print('Failed to load custom shape file')
+	def pltdomain(self, use_shp_file=False):
+		if use_shp_file:
+			try:
+				self.shape_feature = ShapelyFeature(Reader(self.shp_file).geometries(), ccrs.PlateCarree(), facecolor='none')
+			except:
+				print('Failed to load custom shape file')
 		#Create a feature for States/Admin 1 regions at 1:10m from Natural Earth
 		states_provinces = feature.NaturalEarthFeature(
 			category='cultural',
@@ -1070,17 +992,8 @@ class PyCPT_Args():
 
 			ax = plt.subplot(1, 2, i+1, projection=ccrs.PlateCarree())
 			ax.set_extent([loni[i],lone[i],lati[i],late[i]], ccrs.PlateCarree())
-
-			# Put a background image on for nice sea rendering.
-			#ax.stock_img()
-
 			ax.add_feature(feature.LAND)
-			#ax.add_feature(feature.COASTLINE)
 			ax.add_feature(feature.OCEAN)
-			#try:
-			#ax.add_feature(self.shape_feature, edgecolor='black')
-			#except:
-			#	pass
 			ax.set_title(title[i]+" domain")
 			pl=ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
 					  linewidth=1, color='gray', alpha=0.5, linestyle=(0,(2,4)))
@@ -1090,26 +1003,29 @@ class PyCPT_Args():
 			pl.yformatter = LATITUDE_FORMATTER
 			if self.use_default == 'True':
 				ax.add_feature(states_provinces, edgecolor='black')
-			#states_provinces = cfeature.NaturalEarthFeature(
-	        #category='cultural',
-	        #name='admin_1_states_provinces_lines',
-	        #scale='50m',
-	        #facecolor='none')
+			if use_shp_file:
+				try:
+					ax.add_feature(self.shape_feature, edgecolor='black')
+				except:
+					print('failed to load shape file')
 		plt.savefig("./images/domain.png",dpi=300, bbox_inches='tight') #SAVE_FILE 0_domain.png
 		if self.showPlot:
 			plt.show()
 		else:
 			plt.close()
 
-	def pltmap(self, score_ndx, isNextGen=-1):
-
+	def pltmap(self, score_ndx, isNextGen=-1, use_shp_file=False):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 		if isNextGen != -1:
 			self.models = ['NextGen']
 
-		#try:
-		#	shape_feature = ShapelyFeature(Reader(self.shp_file).geometries(), ccrs.PlateCarree(), facecolor='none')
-		#except:
-		#	print('Failed to load custom shape file')
+		if use_shp_file:
+			try:
+				self.shape_feature = ShapelyFeature(Reader(self.shp_file).geometries(), ccrs.PlateCarree(), facecolor='none')
+			except:
+				print('Failed to load custom shape file')
 
 		nmods=len(self.models)
 		nsea=len(self.mons)
@@ -1181,10 +1097,11 @@ class PyCPT_Args():
 				pl.xlabels_bottom = True
 				pl.xformatter = LONGITUDE_FORMATTER
 				pl.yformatter = LATITUDE_FORMATTER
-				#try:
-				#	ax[i][j].add_feature(self.shape_feature, edgecolor='black')
-				#except:
-				#	print('failed to add your shape file')
+				if use_shp_file:
+					try:
+						ax[i][j].add_feature(self.shape_feature, edgecolor='black')
+					except:
+						print('failed to add your shape file')
 				if self.use_default == 'True':
 					ax[i][j].add_feature(states_provinces, edgecolor='black')
 				ax[i][j].set_ybound(lower=self.sla2, upper=self.nla2)
@@ -1347,12 +1264,15 @@ class PyCPT_Args():
 		else:
 			plt.close()
 
-	def plteofs(self, mode):
-
-		#try:
-		#	shape_feature = ShapelyFeature(Reader(self.shp_file).geometries(), ccrs.PlateCarree(), facecolor='none')
-		#except:
-		#	print('Failed to load custom shape file')
+	def plteofs(self, mode, use_shp_file=False):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
+		if use_shp_file:
+			try:
+				self.shape_feature = ShapelyFeature(Reader(self.shp_file).geometries(), ccrs.PlateCarree(), facecolor='none')
+			except:
+				print('Failed to load custom shape file')
 
 		M = self.eof_modes
 		#mol=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -1455,10 +1375,11 @@ class PyCPT_Args():
 				pl.xlabels_bottom = True
 				pl.xformatter = LONGITUDE_FORMATTER
 				pl.yformatter = LATITUDE_FORMATTER
-				#try:
-				#	ax[i][j].add_feature(self.shape_feature, edgecolor='black')
-				#except:
-			#		print('failed to load your shapefile')
+				if use_shp_file:
+					try:
+						ax[i][j].add_feature(self.shape_feature, edgecolor='black')
+					except:
+						print('failed to load your shapefile')
 				if self.use_default == 'True':
 					ax[i][j].add_feature(states_provinces, edgecolor='black')
 
@@ -1626,15 +1547,20 @@ class PyCPT_Args():
 			plt.close()
 
 	def setNextGenModels(self, models):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 		self.original_models = self.models
 		self.models = models
 		self.original_MOS = self.MOS
 		self.MOS = "None"
 
 	def restoreModels(self):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 		self.models = self.original_models
 		self.MOS = self.original_MOS
-
 
 	def make_cmap_blue(self,x):
 		colors = [(244, 255,255),
@@ -1675,6 +1601,9 @@ class PyCPT_Args():
 		return LinearSegmentedColormap.from_list( "matlab_clone", colors, N=x)
 
 	def readGrADSctl(self, models,fprefix,predictand,mpref,id,tar,monf,fyr):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 		#Read grads binary file size H, W, T
 		with open('./output/'+str(models[0])+'_'+fprefix+predictand+'_'+mpref+id+'_'+tar+'_'+monf+str(fyr)+'.ctl', "r") as fp:
 			for line in self.lines_that_contain("XDEF", fp):
@@ -1697,6 +1626,9 @@ class PyCPT_Args():
 		return [line for line in fp if string in line]
 
 	def writeCPT(self, tar_ndx, var, outfile):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 		vari = 'prec'
 		varname = vari
 		units = 'mm'
@@ -1753,7 +1685,9 @@ class PyCPT_Args():
 		f.close()
 
 	def NGensemble(self, tar_ndx):
-
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 
 		nmods=len(self.models)
 
@@ -1802,13 +1736,17 @@ class PyCPT_Args():
 			self.writeCPT(tar_ndx, NG,'./output/NextGen_'+self.fprefix+self.PREDICTAND+'_'+self.mpref+'FCST_var_'+self.tgts[tar_ndx]+'_'+self.monf[tar_ndx]+str(fyr)+'.tsv')
 			print('Forecast error files successfully produced')
 
-	def plt_ng_probabilistic(self):
+	def plt_ng_probabilistic(self, use_shp_file=False):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 
-		try:
-			self.shape_feature = ShapelyFeature(Reader(self.shp_file).geometries(), ccrs.PlateCarree(), facecolor='none')
-		except:
-			#print('Failed to load custom shape file')
-			pass
+		if use_shp_file:
+			try:
+				self.shape_feature = ShapelyFeature(Reader(self.shp_file).geometries(), ccrs.PlateCarree(), facecolor='none')
+			except:
+				print('Failed to load custom shape file')
+
 
 		self._tempmods = copy.deepcopy(self.models)
 		self.models = ['NextGen']
@@ -1900,11 +1838,11 @@ class PyCPT_Args():
 				pl.xformatter = LONGITUDE_FORMATTER
 				pl.yformatter = LATITUDE_FORMATTER
 				pl.xlabel_style = {'size': 8}#'rotation': 'vertical'}
-				try:
-					ax[i][j].add_feature(self.shape_feature, edgecolor='black')
-				except:
-					#print('failed to load your shapefile')
-					pass
+				if use_shp_file:
+					try:
+						ax[i][j].add_feature(self.shape_feature, edgecolor='black')
+					except:
+						print('failed to load your shapefile')
 				if self.use_default == 'True':
 					ax[i][j].add_feature(states_provinces, edgecolor='black')
 
@@ -1975,6 +1913,9 @@ class PyCPT_Args():
 		self.models = self._tempmods
 
 	def read_forecast_bin(self, fcst_type, model, predictand, mpref, mons, mon, fyr):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 		if fcst_type == 'deterministic':
 			f = open("./output/" + model + '_' + predictand + predictand +'_' + mpref + 'FCST_mu_' +mons + '_' +mon+str(fyr)+'.dat', 'rb')
 		elif fcst_type == 'probabilistic':
@@ -2035,6 +1976,9 @@ class PyCPT_Args():
 
 
 	def read_forecast(self, fcst_type, model, predictand, mpref, mons, mon, fyr):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 		if fcst_type == 'deterministic':
 			f = open("./output/" + model + '_' + predictand + '_' + mpref + 'FCST_mu_' +mons + '_' +mon+str(fyr)+'.txt', 'r')
 		elif fcst_type == 'probabilistic':
@@ -2074,7 +2018,9 @@ class PyCPT_Args():
 		return lats, longs, all_vals
 
 	def ensemblefiles(self,models,work):
-
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
 		if platform.system() == 'Windows':
 			self.callSys("cd output && mkdir NextGen")
 			self.callSys("cd output\\NextGen &&  del /s /q *_NextGen.tgz")
@@ -2104,12 +2050,15 @@ class PyCPT_Args():
 		print("Compressed file "+work+"_NextGen.tgz created in output/NextGen/")
 		print("Now send that file to your contact at the IRI")
 
-	def plt_ng_deterministic(self):
-
-		try:
-			self.shape_feature = ShapelyFeature(Reader(self.shp_file).geometries(), ccrs.PlateCarree(), facecolor='none')
-		except:
-			pass
+	def plt_ng_deterministic(self, use_shp_file=False):
+		if self.isInitialized == 0:
+			print("You need to initialize this PyCPT Run by loading from file, or by passing the arguments, or by passing an argument dictionary!")
+			return
+		if use_shp_file:
+			try:
+				self.shape_feature = ShapelyFeature(Reader(self.shp_file).geometries(), ccrs.PlateCarree(), facecolor='none')
+			except:
+				print('failed to load shp file')
 		self._tempmods = copy.deepcopy(self.models)
 		self.models=['NextGen']
 		cbar_loc, fancy = 'bottom', True
@@ -2167,10 +2116,11 @@ class PyCPT_Args():
 
 				ax[i][j].add_feature(feature.LAND)
 				#ax[i][j].add_feature(feature.COASTLINE)
-				try:
-					ax[i][j].add_feature(self.shape_feature, edgecolor='black')
-				except:
-					pass
+				if use_shp_file:
+					try:
+						ax[i][j].add_feature(self.shape_feature, edgecolor='black')
+					except:
+						print('failed to load shp file')
 
 				if self.use_default == 'True':
 					ax[i][j].add_feature(states_provinces, edgecolor='black')
@@ -2234,59 +2184,96 @@ class PyCPT_Args():
 			plt.close()
 		self.models = self._tempmods
 
-def my_call(arg, showPlot):
-	if showPlot:
-		get_ipython().system(arg)
-	else:
-		x = subprocess.call(arg, shell=True )
-
-
-#set up the required directory structure lol
-def setup_directories(workdir,working_directory, force_download, cptdir, showPlot=True):
-	os.chdir(working_directory)
-
-	if force_download and os.path.isdir(workdir):
-		if platform.system() == 'Windows':
-			print('Windows deleting folders')
-			my_call('del /S /Q {}/{}'.format(workdir), showPlot)
-			my_call('rmdir /S /Q {}/{}'.format(workdir + '/scripts'), showPlot)
-			my_call('rmdir /S /Q {}/{}'.format(workdir + '/input'), showPlot)
-			my_call('rmdir /S /Q {}/{}'.format(workdir + '/output'), showPlot)
-			my_call('rmdir /S /Q {}/{}'.format(workdir + '/images'), showPlot)
-			my_call('rmdir /S /Q {}/{}'.format(workdir), showPlot)
+	def my_call(self, arg):
+		if self.showPlot:
+			get_ipython().system(arg)
 		else:
-			print('Mac deleting folders')
-			my_call('rm -rf {}'.format(workdir), showPlot)
+			x = subprocess.call(arg, shell=True )
 
-	if not os.path.isdir(workdir):
-		my_call('mkdir {}'.format(workdir), showPlot)
 
-	if not os.path.isdir(workdir + '/scripts'):
-		if platform.system() == 'Windows':
-			my_call('cd {} && mkdir scripts'.format(workdir), showPlot)
+	#set up the required directory structure lol
+	def setup_directories(self, showPlot=True):
+		os.chdir(self.workdir)
+
+		if self.force_download and os.path.isdir(self.work):
+			if platform.system() == 'Windows':
+				print('Windows deleting folders')
+				self.my_call('del /S /Q {}/{}'.format(self.work))
+				self.my_call('rmdir /S /Q {}/{}'.format(self.work + '/scripts'))
+				self.my_call('rmdir /S /Q {}/{}'.format(self.work + '/input'))
+				self.my_call('rmdir /S /Q {}/{}'.format(self.work + '/output'))
+				self.my_call('rmdir /S /Q {}/{}'.format(self.work + '/images'))
+				self.my_call('rmdir /S /Q {}/{}'.format(self.work))
+			else:
+				print('Mac deleting folders')
+				self.my_call('rm -rf {}'.format(self.work))
+
+		if not os.path.isdir(self.work):
+			self.my_call('mkdir {}'.format(self.work))
+
+		if not os.path.isdir(self.work + '/scripts'):
+			if platform.system() == 'Windows':
+				self.my_call('cd {} && mkdir scripts'.format(self.work))
+			else:
+				self.my_call('mkdir {}/scripts'.format(self.work))
+
+		if not os.path.isdir(self.work + '/images'):
+			if platform.system() == "Windows":
+				self.my_call('cd {} && mkdir images'.format(self.work))
+			else:
+				self.my_call('mkdir {}/images'.format(self.work))
+
+		if not os.path.isdir(self.work + '/input'):
+			if platform.system() == "Windows":
+				self.my_call('cd {} && mkdir input'.format(self.work))
+			else:
+				self.my_call('mkdir {}/input'.format(self.work))
+
+		if not os.path.isdir(self.work + '/output'):
+			if platform.system() == "Windows":
+				self.my_call('cd {} && mkdir output'.format(self.work))
+			else:
+				self.my_call('mkdir {}/output'.format(self.work))
+
+		os.environ["CPT_BIN_DIR"] = self.cptdir
+		os.chdir(self.work)
+
+	def run_test(self):
+		self.setup_directories()
+		self.pltdomain()
+
+		for model in range(len(self.models)):
+			for tgt in range(len(self.mons)):
+				self.setupParams(tgt)
+				self.prepFiles(tgt, model)
+				self.CPTscript(tgt, model)
+				self.run(tgt, model)
+
+		for ime in range(len(self.met)):
+			self.pltmap(ime)
+
+		for imod in range(self.eof_modes):
+			self.plteofs(imod)
+
+		if len(self.models) > 2:
+			models = self.models[0: int(len(self.models)/2) ]
 		else:
-			my_call('mkdir {}/scripts'.format(workdir), showPlot)
+			models = self.models[0]
 
-	if not os.path.isdir(workdir + '/images'):
-		if platform.system() == "Windows":
-			my_call('cd {} && mkdir images'.format(workdir), showPlot)
-		else:
-			my_call('mkdir {}/images'.format(workdir), showPlot)
+		self.setNextGenModels(models)
 
-	if not os.path.isdir(workdir + '/input'):
-		if platform.system() == "Windows":
-			my_call('cd {} && mkdir input'.format(workdir), showPlot)
-		else:
-			my_call('mkdir {}/input'.format(workdir), showPlot)
+		for tgt in range(len(self.tgts)):
+			self.NGensemble(tgt)
+			self.CPTscript(tgt)
+			self.run(tgt)
 
-	if not os.path.isdir(workdir + '/output'):
-		if platform.system() == "Windows":
-			my_call('cd {} && mkdir output'.format(workdir), showPlot)
-		else:
-			my_call('mkdir {}/output'.format(workdir), showPlot)
+		for ime in range(len(self.met)):
+			self.pltmap(ime, isNextGen=1)
 
-	os.environ["CPT_BIN_DIR"] = cptdir
-	os.chdir(workdir)
+		self.plt_ng_deterministic()
+		self.plt_ng_probabilistic()
+
+		self.ensemblefiles(['NextGen'], self.work)
 
 
 
